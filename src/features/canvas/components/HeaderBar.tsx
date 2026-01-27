@@ -16,6 +16,7 @@ type HeaderBarProps = {
   onZoomIn: () => void;
   onZoomOut: () => void;
   onZoomReset: () => void;
+  onZoomToFit: () => void;
 };
 
 const statusStyles: Record<GatewayStatus, string> = {
@@ -40,6 +41,7 @@ export const HeaderBar = ({
   onZoomIn,
   onZoomOut,
   onZoomReset,
+  onZoomToFit,
 }: HeaderBarProps) => {
   const hasProjects = projects.length > 0;
 
@@ -132,7 +134,7 @@ export const HeaderBar = ({
           >
             −
           </button>
-          <span className="text-xs font-semibold text-slate-600">
+          <span className="text-xs font-semibold text-slate-600" data-zoom-readout>
             {Math.round(zoom * 100)}%
           </span>
           <button
@@ -148,6 +150,13 @@ export const HeaderBar = ({
             onClick={onZoomReset}
           >
             Reset
+          </button>
+          <button
+            className="text-xs font-semibold text-slate-500"
+            type="button"
+            onClick={onZoomToFit}
+          >
+            Fit
           </button>
         </div>
       </div>

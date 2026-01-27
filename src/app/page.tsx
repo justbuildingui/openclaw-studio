@@ -1,8 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { CanvasMinimap } from "@/features/canvas/components/CanvasMinimap";
 import { CanvasViewport } from "@/features/canvas/components/CanvasViewport";
 import { HeaderBar } from "@/features/canvas/components/HeaderBar";
+import { zoomAtScreenPoint, zoomToFit } from "@/features/canvas/lib/transform";
 import { extractText } from "@/lib/text/extractText";
 import { useGatewayConnection } from "@/lib/gateway/useGatewayConnection";
 import type { EventFrame } from "@/lib/gateway/frames";
@@ -171,12 +173,27 @@ const AgentCanvasPage = () => {
   const historyInFlightRef = useRef<Set<string>>(new Set());
   const historyPollsRef = useRef<Map<string, number>>(new Map());
   const stateRef = useRef(state);
+  const viewportRef = useRef<HTMLDivElement | null>(null);
+  const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
 
-  const tiles = project?.tiles ?? [];
+  const tiles = useMemo(() => project?.tiles ?? [], [project?.tiles]);
 
   useEffect(() => {
     stateRef.current = state;
   }, [state]);
+
+  useEffect(() => {
+    const node = viewportRef.current;
+    if (!node) return;
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) return;
+      const { width, height } = entry.contentRect;
+      setViewportSize({ width, height });
+    });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
 
   const handleNewAgent = useCallback(async () => {
     if (!project) return;
@@ -595,13 +612,28 @@ const AgentCanvasPage = () => {
 
   const zoom = state.canvas.zoom;
 
+  const getViewportCenter = useCallback(() => {
+    const node = viewportRef.current;
+    if (!node) return null;
+    const rect = node.getBoundingClientRect();
+    return { x: rect.width / 2, y: rect.height / 2 };
+  }, []);
+
   const handleZoomIn = useCallback(() => {
-    dispatch({ type: "setCanvas", patch: { zoom: Math.min(2.2, zoom + 0.1) } });
-  }, [dispatch, zoom]);
+    const screenPoint = getViewportCenter();
+    if (!screenPoint) return;
+    const nextZoom = zoom * 1.1;
+    const nextTransform = zoomAtScreenPoint(state.canvas, nextZoom, screenPoint);
+    dispatch({ type: "setCanvas", patch: nextTransform });
+  }, [dispatch, getViewportCenter, state.canvas, zoom]);
 
   const handleZoomOut = useCallback(() => {
-    dispatch({ type: "setCanvas", patch: { zoom: Math.max(0.5, zoom - 0.1) } });
-  }, [dispatch, zoom]);
+    const screenPoint = getViewportCenter();
+    if (!screenPoint) return;
+    const nextZoom = zoom / 1.1;
+    const nextTransform = zoomAtScreenPoint(state.canvas, nextZoom, screenPoint);
+    dispatch({ type: "setCanvas", patch: nextTransform });
+  }, [dispatch, getViewportCenter, state.canvas, zoom]);
 
   const handleZoomReset = useCallback(() => {
     dispatch({
@@ -609,6 +641,12 @@ const AgentCanvasPage = () => {
       patch: { zoom: CANVAS_BASE_ZOOM, offsetX: 0, offsetY: 0 },
     });
   }, [dispatch]);
+
+  const handleZoomToFit = useCallback(() => {
+    if (viewportSize.width === 0 || viewportSize.height === 0) return;
+    const nextTransform = zoomToFit(tiles, viewportSize, 80, state.canvas);
+    dispatch({ type: "setCanvas", patch: nextTransform });
+  }, [dispatch, state.canvas, tiles, viewportSize]);
 
   const handleCenterCanvas = useCallback(() => {
     dispatch({ type: "setCanvas", patch: { offsetX: 0, offsetY: 0 } });
@@ -699,6 +737,7 @@ const AgentCanvasPage = () => {
       <CanvasViewport
         tiles={tiles}
         transform={canvasPatch}
+        viewportRef={viewportRef}
         selectedTileId={state.selectedTileId}
         canSend={status === "connected"}
         onSelectTile={(id) => dispatch({ type: "selectTile", tileId: id })}
@@ -786,8 +825,16 @@ const AgentCanvasPage = () => {
             onZoomIn={handleZoomIn}
             onZoomOut={handleZoomOut}
             onZoomReset={handleZoomReset}
+            onZoomToFit={handleZoomToFit}
           />
         </div>
+
+        <CanvasMinimap
+          tiles={tiles}
+          transform={state.canvas}
+          viewportSize={viewportSize}
+          onUpdateTransform={(patch) => dispatch({ type: "setCanvas", patch })}
+        />
 
         {state.loading ? (
           <div className="pointer-events-auto mx-auto w-full max-w-4xl">

@@ -21,6 +21,7 @@ const makeTile = (id: string, position: { x: number; y: number }, size: { width:
   lastDiff: null,
   runId: null,
   streamText: null,
+  thinkingTrace: null,
   draft: "",
   sessionSettingsSynced: false,
 });

@@ -12,6 +12,7 @@
     "e2e": "playwright test"
   },
   "dependencies": {
+    "@multiavatar/multiavatar": "github:multiavatar/Multiavatar",
     "@radix-ui/react-slot": "^1.2.4",
     "@vercel/otel": "^2.1.0",
     "@xyflow/react": "^12.10.0",

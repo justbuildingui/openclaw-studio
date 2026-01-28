@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 // (ReactFlowInstance import removed)
 import { CanvasFlow } from "@/features/canvas/components/CanvasFlow";
 import { HeaderBar } from "@/features/canvas/components/HeaderBar";
+import { MIN_TILE_SIZE } from "@/features/canvas/components/AgentTile";
 import { screenToWorld, worldToScreen } from "@/features/canvas/lib/transform";
 import { extractText } from "@/lib/text/extractText";
 import { extractThinking, formatThinkingMarkdown } from "@/lib/text/extractThinking";
@@ -15,6 +16,7 @@ import {
   useAgentCanvasStore,
 } from "@/features/canvas/state/store";
 import { createProjectDiscordChannel } from "@/lib/projects/client";
+import { createRandomAgentName, normalizeAgentName } from "@/lib/names/agentNames";
 import type { AgentTile, ProjectRuntime } from "@/features/canvas/state/store";
 // (CANVAS_BASE_ZOOM import removed)
 
@@ -173,6 +175,7 @@ const AgentCanvasPage = () => {
     deleteProject,
     deleteTile,
     renameTile,
+    updateTile,
   } = useAgentCanvasStore();
   const project = getActiveProject(state);
   const [showProjectForm, setShowProjectForm] = useState(false);
@@ -207,15 +210,20 @@ const AgentCanvasPage = () => {
       const maxRings = 12;
       const zoom = state.canvas.zoom;
 
-      const minCenterY = safeTop + (tileSize.height * zoom) / 2;
+      const effectiveSize = {
+        width: MIN_TILE_SIZE.width,
+        height: Math.max(tileSize.height, MIN_TILE_SIZE.height),
+      };
+
+      const minCenterY = safeTop + (effectiveSize.height * zoom) / 2;
       const screenCenter = {
         x: viewportSize.width / 2,
         y: Math.max(viewportSize.height / 2, minCenterY),
       };
       const worldCenter = screenToWorld(state.canvas, screenCenter);
       const base = {
-        x: worldCenter.x - tileSize.width / 2,
-        y: worldCenter.y - tileSize.height / 2,
+        x: worldCenter.x - effectiveSize.width / 2,
+        y: worldCenter.y - effectiveSize.height / 2,
       };
 
       const rectsOverlap = (
@@ -236,8 +244,8 @@ const AgentCanvasPage = () => {
 
       const candidateFits = (candidate: { x: number; y: number }) => {
         const screen = worldToScreen(state.canvas, candidate);
-        const tileWidth = tileSize.width * zoom;
-        const tileHeight = tileSize.height * zoom;
+        const tileWidth = effectiveSize.width * zoom;
+        const tileHeight = effectiveSize.height * zoom;
         return (
           screen.x >= edgePadding &&
           screen.y >= safeTop &&
@@ -250,8 +258,8 @@ const AgentCanvasPage = () => {
         const rect = {
           x: candidate.x,
           y: candidate.y,
-          width: tileSize.width,
-          height: tileSize.height,
+          width: effectiveSize.width,
+          height: effectiveSize.height,
         };
         return project.tiles.some((tile) =>
           rectsOverlap(
@@ -259,8 +267,8 @@ const AgentCanvasPage = () => {
             {
               x: tile.position.x,
               y: tile.position.y,
-              width: tile.size.width,
-              height: tile.size.height,
+              width: MIN_TILE_SIZE.width,
+              height: Math.max(tile.size.height, MIN_TILE_SIZE.height),
             },
             24
           )
@@ -307,7 +315,7 @@ const AgentCanvasPage = () => {
 
   const handleNewAgent = useCallback(async () => {
     if (!project) return;
-    const name = `Agent ${crypto.randomUUID().slice(0, 4)}`;
+    const name = createRandomAgentName();
     const result = await createTile(project.id, name, "coding");
     if (!result) return;
 
@@ -836,10 +844,45 @@ const AgentCanvasPage = () => {
     [deleteTile, project]
   );
 
+  const handleAvatarShuffle = useCallback(
+    async (tileId: string) => {
+      if (!project) return;
+      const avatarSeed = crypto.randomUUID();
+      const result = await updateTile(project.id, tileId, { avatarSeed });
+      if (!result) return;
+      if ("error" in result) {
+        window.alert(result.error);
+        return;
+      }
+      if (result.warnings.length > 0) {
+        window.alert(result.warnings.join("\n"));
+      }
+    },
+    [project, updateTile]
+  );
+
+  const handleNameShuffle = useCallback(
+    async (tileId: string) => {
+      if (!project) return;
+      const name = createRandomAgentName();
+      const result = await renameTile(project.id, tileId, normalizeAgentName(name));
+      if (!result) return;
+      if ("error" in result) {
+        window.alert(result.error);
+        return;
+      }
+      if (result.warnings.length > 0) {
+        window.alert(result.warnings.join("\n"));
+      }
+    },
+    [project, renameTile]
+  );
+
   return (
     <div className="relative h-screen w-screen overflow-hidden">
       <CanvasFlow
         tiles={tiles}
+        projectId={project?.id ?? null}
         transform={state.canvas}
         viewportRef={viewportRef}
         selectedTileId={state.selectedTileId}
@@ -861,7 +904,12 @@ const AgentCanvasPage = () => {
                 type: "updateTile",
                 projectId: project.id,
                 tileId: id,
-                patch: { size },
+                patch: {
+                  size: {
+                    width: MIN_TILE_SIZE.width,
+                    height: Math.max(size.height, MIN_TILE_SIZE.height),
+                  },
+                },
               })
             : null
         }
@@ -893,8 +941,9 @@ const AgentCanvasPage = () => {
         onSend={handleSend}
         onModelChange={handleModelChange}
         onThinkingChange={handleThinkingChange}
+        onAvatarShuffle={handleAvatarShuffle}
+        onNameShuffle={handleNameShuffle}
         onUpdateTransform={(patch) => dispatch({ type: "setCanvas", patch })}
-        onInit={undefined}
       />
 
       <div className="pointer-events-none absolute inset-0 z-10 flex flex-col gap-4 p-6">

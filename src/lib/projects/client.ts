@@ -11,6 +11,10 @@ import type {
   ProjectTileDeleteResult,
   ProjectTileRenamePayload,
   ProjectTileRenameResult,
+  ProjectTileUpdatePayload,
+  ProjectTileUpdateResult,
+  ProjectTileWorkspaceFilesResult,
+  ProjectTileWorkspaceFilesUpdatePayload,
   ProjectsStore,
 } from "./types";
 import { fetchJson } from "@/lib/http";
@@ -94,4 +98,41 @@ export const renameProjectTile = async (
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
+};
+
+export const updateProjectTile = async (
+  projectId: string,
+  tileId: string,
+  payload: ProjectTileUpdatePayload
+): Promise<ProjectTileUpdateResult> => {
+  return fetchJson<ProjectTileUpdateResult>(`/api/projects/${projectId}/tiles/${tileId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+};
+
+export const fetchProjectTileWorkspaceFiles = async (
+  projectId: string,
+  tileId: string
+): Promise<ProjectTileWorkspaceFilesResult> => {
+  return fetchJson<ProjectTileWorkspaceFilesResult>(
+    `/api/projects/${projectId}/tiles/${tileId}/workspace-files`,
+    { cache: "no-store" }
+  );
+};
+
+export const updateProjectTileWorkspaceFiles = async (
+  projectId: string,
+  tileId: string,
+  payload: ProjectTileWorkspaceFilesUpdatePayload
+): Promise<ProjectTileWorkspaceFilesResult> => {
+  return fetchJson<ProjectTileWorkspaceFilesResult>(
+    `/api/projects/${projectId}/tiles/${tileId}/workspace-files`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }
+  );
 };

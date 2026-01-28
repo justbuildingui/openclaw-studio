@@ -11,7 +11,6 @@ import {
   useNodesState,
   type Node,
   type OnMove,
-  type ReactFlowInstance,
 } from "@xyflow/react";
 import type {
   AgentTile,
@@ -20,9 +19,11 @@ import type {
   TileSize,
 } from "@/features/canvas/state/store";
 import { AgentTileNode, type AgentTileNodeData } from "./AgentTileNode";
+import { MIN_TILE_SIZE } from "./AgentTile";
 
 type CanvasFlowProps = {
   tiles: AgentTile[];
+  projectId: string | null;
   transform: CanvasTransform;
   viewportRef?: React.MutableRefObject<HTMLDivElement | null>;
   selectedTileId: string | null;
@@ -36,14 +37,16 @@ type CanvasFlowProps = {
   onSend: (id: string, sessionKey: string, message: string) => void;
   onModelChange: (id: string, sessionKey: string, value: string | null) => void;
   onThinkingChange: (id: string, sessionKey: string, value: string | null) => void;
+  onAvatarShuffle: (id: string) => void;
+  onNameShuffle: (id: string) => void;
   onUpdateTransform: (patch: Partial<CanvasTransform>) => void;
-  onInit?: (instance: ReactFlowInstance) => void;
 };
 
 type TileNode = Node<AgentTileNodeData>;
 
 const CanvasFlowInner = ({
   tiles,
+  projectId,
   transform,
   viewportRef,
   selectedTileId,
@@ -54,11 +57,12 @@ const CanvasFlowInner = ({
   onDeleteTile,
   onRenameTile,
   onDraftChange,
-  onSend,
-  onModelChange,
-  onThinkingChange,
-  onUpdateTransform,
-  onInit,
+    onSend,
+    onModelChange,
+    onThinkingChange,
+    onAvatarShuffle,
+    onNameShuffle,
+    onUpdateTransform,
 }: CanvasFlowProps) => {
   const nodeTypes = useMemo(() => ({ agentTile: AgentTileNode }), []);
   const handlersRef = useRef({
@@ -70,6 +74,8 @@ const CanvasFlowInner = ({
     onSend,
     onModelChange,
     onThinkingChange,
+    onAvatarShuffle,
+    onNameShuffle,
   });
 
   useEffect(() => {
@@ -82,6 +88,8 @@ const CanvasFlowInner = ({
       onSend,
       onModelChange,
       onThinkingChange,
+      onAvatarShuffle,
+      onNameShuffle,
     };
   }, [
     onMoveTile,
@@ -92,6 +100,8 @@ const CanvasFlowInner = ({
     onSend,
     onModelChange,
     onThinkingChange,
+    onAvatarShuffle,
+    onNameShuffle,
   ]);
 
   const nodesFromTiles = useMemo<TileNode[]>(
@@ -100,11 +110,12 @@ const CanvasFlowInner = ({
         id: tile.id,
         type: "agentTile",
         position: tile.position,
-        width: tile.size.width,
+        width: MIN_TILE_SIZE.width,
         height: tile.size.height,
         dragHandle: "[data-drag-handle]",
         data: {
           tile,
+          projectId,
           canSend,
           onResize: (size) => handlersRef.current.onResizeTile(tile.id, size),
           onDelete: () => handlersRef.current.onDeleteTile(tile.id),
@@ -116,9 +127,11 @@ const CanvasFlowInner = ({
             handlersRef.current.onModelChange(tile.id, tile.sessionKey, value),
           onThinkingChange: (value) =>
             handlersRef.current.onThinkingChange(tile.id, tile.sessionKey, value),
+          onAvatarShuffle: () => handlersRef.current.onAvatarShuffle(tile.id),
+          onNameShuffle: () => handlersRef.current.onNameShuffle(tile.id),
         },
       })),
-    [canSend, tiles]
+    [canSend, projectId, tiles]
   );
 
   const [nodes, setNodes, onNodesChange] = useNodesState(nodesFromTiles);
@@ -189,7 +202,6 @@ const CanvasFlowInner = ({
         }
       }}
       onMove={handleMove}
-      onInit={onInit}
       fitView
       fitViewOptions={{ padding: 0.2 }}
       minZoom={0.1}

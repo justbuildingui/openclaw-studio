@@ -5,16 +5,14 @@ import os from "node:os";
 import path from "node:path";
 
 import { logger } from "@/lib/logger";
-import type { ProjectTileRenamePayload } from "@/lib/projects/types";
+import type { ProjectTileUpdatePayload } from "@/lib/projects/types";
 import { resolveAgentWorkspaceDir } from "@/lib/projects/agentWorkspace";
 import {
   loadClawdbotConfig,
   removeAgentEntry,
-  renameAgentEntry,
   saveClawdbotConfig,
   upsertAgentEntry,
 } from "@/lib/clawdbot/config";
-import { generateAgentId } from "@/lib/ids/agentId";
 import { loadStore, saveStore } from "../../../store";
 
 export const runtime = "nodejs";
@@ -97,10 +95,18 @@ export async function PATCH(
         { status: 400 }
       );
     }
-    const body = (await request.json()) as ProjectTileRenamePayload;
+    const body = (await request.json()) as ProjectTileUpdatePayload;
     const name = typeof body?.name === "string" ? body.name.trim() : "";
-    if (!name) {
-      return NextResponse.json({ error: "Tile name is required." }, { status: 400 });
+    const avatarSeed =
+      typeof body?.avatarSeed === "string" ? body.avatarSeed.trim() : "";
+    if (!name && !avatarSeed) {
+      return NextResponse.json(
+        { error: "Tile update requires a name or avatar seed." },
+        { status: 400 }
+      );
+    }
+    if (body?.avatarSeed !== undefined && !avatarSeed) {
+      return NextResponse.json({ error: "Avatar seed is invalid." }, { status: 400 });
     }
 
     const store = loadStore();
@@ -113,86 +119,32 @@ export async function PATCH(
       return NextResponse.json({ error: "Tile not found." }, { status: 404 });
     }
 
-    const projectSlug = path.basename(project.repoPath);
-    let nextAgentId = "";
-    try {
-      nextAgentId = generateAgentId({ projectSlug, tileName: name });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Invalid agent name.";
-      return NextResponse.json({ error: message }, { status: 400 });
-    }
-
-    const conflict = project.tiles.some(
-      (entry) => entry.id !== trimmedTileId && entry.agentId === nextAgentId
-    );
-    if (conflict) {
-      return NextResponse.json(
-        { error: `Agent id already exists: ${nextAgentId}` },
-        { status: 409 }
-      );
-    }
-
     const warnings: string[] = [];
-    if (tile.agentId !== nextAgentId) {
-      const stateDirRaw = process.env.CLAWDBOT_STATE_DIR ?? "~/.clawdbot";
-      const stateDir = resolveHomePath(stateDirRaw);
-      const workspaceSource = resolveAgentWorkspaceDir(trimmedProjectId, tile.agentId);
-      const workspaceTarget = resolveAgentWorkspaceDir(trimmedProjectId, nextAgentId);
-      const agentSource = path.join(stateDir, "agents", tile.agentId);
-      const agentTarget = path.join(stateDir, "agents", nextAgentId);
-      if (fs.existsSync(workspaceTarget)) {
-        return NextResponse.json(
-          { error: `Agent workspace already exists at ${workspaceTarget}` },
-          { status: 409 }
-        );
+    if (name) {
+      const nextWorkspaceDir = resolveAgentWorkspaceDir(trimmedProjectId, tile.agentId);
+      try {
+        const { config, configPath } = loadClawdbotConfig();
+        const changed = upsertAgentEntry(config, {
+          agentId: tile.agentId,
+          agentName: name,
+          workspaceDir: nextWorkspaceDir,
+        });
+        if (changed) {
+          saveClawdbotConfig(configPath, config);
+        }
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Failed to update clawdbot.json.";
+        warnings.push(`Agent config not updated: ${message}`);
       }
-      if (fs.existsSync(agentTarget)) {
-        return NextResponse.json(
-          { error: `Agent state already exists at ${agentTarget}` },
-          { status: 409 }
-        );
-      }
-      renameDirIfExists(workspaceSource, workspaceTarget, "Agent workspace", warnings);
-      renameDirIfExists(
-        agentSource,
-        agentTarget,
-        "Agent state",
-        warnings,
-        { warnIfMissing: false }
-      );
-    }
-    const nextWorkspaceDir = resolveAgentWorkspaceDir(trimmedProjectId, nextAgentId);
-    try {
-      const { config, configPath } = loadClawdbotConfig();
-      const changed =
-        tile.agentId !== nextAgentId
-          ? renameAgentEntry(config, {
-              fromAgentId: tile.agentId,
-              toAgentId: nextAgentId,
-              agentName: name,
-              workspaceDir: nextWorkspaceDir,
-            })
-          : upsertAgentEntry(config, {
-              agentId: nextAgentId,
-              agentName: name,
-              workspaceDir: nextWorkspaceDir,
-            });
-      if (changed) {
-        saveClawdbotConfig(configPath, config);
-      }
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Failed to update clawdbot.json.";
-      warnings.push(`Agent config not updated: ${message}`);
     }
 
     const nextTiles = project.tiles.map((entry) =>
       entry.id === trimmedTileId
         ? {
             ...entry,
-            name,
-            agentId: nextAgentId,
-            sessionKey: `agent:${nextAgentId}:main`,
+            name: name || entry.name,
+            avatarSeed: avatarSeed || entry.avatarSeed,
           }
         : entry
     );
@@ -222,29 +174,6 @@ const resolveHomePath = (inputPath: string) => {
     return path.join(os.homedir(), inputPath.slice(2));
   }
   return inputPath;
-};
-
-const renameDirIfExists = (
-  source: string,
-  destination: string,
-  label: string,
-  warnings: string[],
-  options?: { warnIfMissing?: boolean }
-) => {
-  if (!fs.existsSync(source)) {
-    if (options?.warnIfMissing !== false) {
-      warnings.push(`${label} not found at ${source}.`);
-    }
-    return;
-  }
-  if (fs.existsSync(destination)) {
-    throw new Error(`${label} already exists at ${destination}.`);
-  }
-  const stat = fs.statSync(source);
-  if (!stat.isDirectory()) {
-    throw new Error(`${label} path is not a directory: ${source}`);
-  }
-  fs.renameSync(source, destination);
 };
 
 const deleteDirIfExists = (targetPath: string, label: string, warnings: string[]) => {

@@ -47,26 +47,6 @@ const ensureDir = (dir: string) => {
   fs.mkdirSync(dir, { recursive: true });
 };
 
-const buildBootstrapContent = (
-  repoPath: string,
-  workspaceDir: string,
-  role: ProjectTileRole
-) => {
-  return [
-    "# BOOTSTRAP.md",
-    "",
-    `Workspace dir: ${workspaceDir}`,
-    `Workspace repo: ${repoPath}`,
-    `Role: ${role}`,
-    "",
-    "You are operating inside this workspace.",
-    `Operate directly in: ${repoPath}`,
-    "",
-    'First action: run "ls" in the repo to confirm access.',
-    "",
-  ].join("\n");
-};
-
 const ensureFile = (filePath: string, contents: string) => {
   if (fs.existsSync(filePath)) {
     return;
@@ -74,20 +54,26 @@ const ensureFile = (filePath: string, contents: string) => {
   fs.writeFileSync(filePath, contents, "utf8");
 };
 
+const deleteFileIfExists = (filePath: string) => {
+  if (!fs.existsSync(filePath)) {
+    return;
+  }
+  const stat = fs.statSync(filePath);
+  if (!stat.isFile()) {
+    return;
+  }
+  fs.rmSync(filePath);
+};
+
 const provisionWorkspace = ({
   workspaceDir,
-  repoPath,
-  role,
 }: {
   workspaceDir: string;
-  repoPath: string;
-  role: ProjectTileRole;
 }): string[] => {
   const warnings: string[] = [];
   ensureDir(workspaceDir);
 
-  const bootstrapContent = buildBootstrapContent(repoPath, workspaceDir, role);
-  ensureFile(path.join(workspaceDir, "BOOTSTRAP.md"), bootstrapContent);
+  deleteFileIfExists(path.join(workspaceDir, "BOOTSTRAP.md"));
   ensureFile(path.join(workspaceDir, "AGENTS.md"), "");
   ensureFile(path.join(workspaceDir, "SOUL.md"), "");
   ensureFile(path.join(workspaceDir, "IDENTITY.md"), "");
@@ -193,15 +179,16 @@ export async function POST(
       sessionKey,
       model: "openai-codex/gpt-5.2-codex",
       thinkingLevel: null,
+      avatarSeed: agentId,
       position: { x: 80 + offset, y: 200 + offset },
-      size: { width: 720, height: 560 },
+      size: { width: 420, height: 520 },
     };
 
     const nextStore = updateStoreProject(store, trimmedProjectId, tile);
     saveStore(nextStore);
 
     const warnings = [
-      ...provisionWorkspace({ workspaceDir, repoPath: project.repoPath, role }),
+      ...provisionWorkspace({ workspaceDir }),
       ...copyAuthProfiles(agentId),
     ];
     try {

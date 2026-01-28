@@ -8,6 +8,7 @@ export type ProjectTile = {
   sessionKey: string;
   model?: string | null;
   thinkingLevel?: string | null;
+  avatarSeed?: string | null;
   position: { x: number; y: number };
   size: { width: number; height: number };
 };
@@ -87,4 +88,28 @@ export type ProjectTileRenamePayload = {
 export type ProjectTileRenameResult = {
   store: ProjectsStore;
   warnings: string[];
+};
+
+export type ProjectTileUpdatePayload = {
+  name?: string;
+  avatarSeed?: string | null;
+};
+
+export type ProjectTileUpdateResult = {
+  store: ProjectsStore;
+  warnings: string[];
+};
+
+export type ProjectTileWorkspaceFile = {
+  name: string;
+  content: string;
+  exists: boolean;
+};
+
+export type ProjectTileWorkspaceFilesResult = {
+  files: ProjectTileWorkspaceFile[];
+};
+
+export type ProjectTileWorkspaceFilesUpdatePayload = {
+  files: Array<{ name: string; content: string }>;
 };

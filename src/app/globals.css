@@ -121,12 +121,84 @@ body {
   will-change: transform;
 }
 
+.react-flow__node.selectable.selected,
+.react-flow__node.selectable:focus,
+.react-flow__node.selectable:focus-visible,
+.react-flow__node-default.selectable.selected,
+.react-flow__node-default.selectable:focus,
+.react-flow__node-default.selectable:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+.react-flow {
+  --xy-node-border: 1px solid transparent;
+  --xy-node-border-selected: 1px solid transparent;
+  --xy-selection-border: 1px solid transparent;
+  --xy-resize-background-color: transparent;
+}
+
+.react-flow__resize-control.line {
+  border-color: transparent;
+}
+
+.react-flow__resize-control.handle {
+  background-color: transparent;
+  border-color: transparent;
+}
+
+.tile-resize-handle {
+  height: 8px;
+  width: 112px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.7);
+  background-color: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 6px 12px rgba(15, 23, 42, 0.18);
+  opacity: 0;
+  transition: opacity 160ms ease;
+  z-index: 2;
+}
+
+.react-flow__node:hover .tile-resize-handle,
+.react-flow__node.selected .tile-resize-handle {
+  opacity: 1;
+}
+
+.tile-resize-handle.react-flow__resize-control.bottom {
+  transform: translate(-50%, -100%);
+}
+
 .fade-up {
   animation: fadeUp 600ms ease-out both;
 }
 
 .fade-up-delay {
   animation: fadeUp 600ms ease-out 120ms both;
+}
+
+.agent-avatar-selected {
+  animation: agentAvatarPulse 2.6s ease-in-out infinite;
+  box-shadow:
+    0 0 0 0 rgba(59, 130, 246, 0.22),
+    0 8px 18px rgba(15, 23, 42, 0.12);
+}
+
+@keyframes agentAvatarPulse {
+  0% {
+    box-shadow:
+      0 0 0 0 rgba(59, 130, 246, 0.22),
+      0 8px 18px rgba(15, 23, 42, 0.12);
+  }
+  50% {
+    box-shadow:
+      0 0 0 6px rgba(59, 130, 246, 0.14),
+      0 10px 22px rgba(15, 23, 42, 0.16);
+  }
+  100% {
+    box-shadow:
+      0 0 0 0 rgba(59, 130, 246, 0.22),
+      0 8px 18px rgba(15, 23, 42, 0.12);
+  }
 }
 
 @keyframes fadeUp {

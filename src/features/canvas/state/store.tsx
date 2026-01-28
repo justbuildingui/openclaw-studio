@@ -21,6 +21,7 @@ import {
   fetchProjectsStore,
   openProject as apiOpenProject,
   renameProjectTile as apiRenameProjectTile,
+  updateProjectTile as apiUpdateProjectTile,
   saveProjectsStore,
 } from "@/lib/projects/client";
 
@@ -91,6 +92,7 @@ const createRuntimeTile = (tile: ProjectTile): AgentTile => ({
   sessionKey: tile.sessionKey || buildSessionKey(tile.agentId),
   model: tile.model ?? "openai-codex/gpt-5.2-codex",
   thinkingLevel: tile.thinkingLevel ?? "low",
+  avatarSeed: tile.avatarSeed ?? tile.agentId,
   status: "idle",
   outputLines: [],
   lastResult: null,
@@ -124,6 +126,7 @@ const dehydrateStore = (state: CanvasState): ProjectsStore => ({
       sessionKey: tile.sessionKey,
       model: tile.model ?? null,
       thinkingLevel: tile.thinkingLevel ?? null,
+      avatarSeed: tile.avatarSeed ?? null,
       position: tile.position,
       size: tile.size,
     })),
@@ -268,6 +271,11 @@ type StoreContextValue = {
     tileId: string,
     name: string
   ) => Promise<{ warnings: string[] } | { error: string } | null>;
+  updateTile: (
+    projectId: string,
+    tileId: string,
+    payload: { avatarSeed?: string | null }
+  ) => Promise<{ warnings: string[] } | { error: string } | null>;
 };
 
 const StoreContext = createContext<StoreContextValue | null>(null);
@@ -372,17 +380,60 @@ export const AgentCanvasProvider = ({ children }: { children: ReactNode }) => {
 
   const renameTile = useCallback(
     async (projectId: string, tileId: string, name: string) => {
+      const project = state.projects.find((item) => item.id === projectId);
+      const tile = project?.tiles.find((item) => item.id === tileId);
+      if (tile) {
+        dispatch({ type: "updateTile", projectId, tileId, patch: { name } });
+      }
       try {
         const result = await apiRenameProjectTile(projectId, tileId, { name });
-        dispatch({ type: "loadStore", store: result.store });
         return { warnings: result.warnings };
       } catch (err) {
         const message = err instanceof Error ? err.message : "Failed to rename tile.";
+        if (tile) {
+          dispatch({
+            type: "updateTile",
+            projectId,
+            tileId,
+            patch: { name: tile.name },
+          });
+        }
         dispatch({ type: "setError", error: message });
         return { error: message };
       }
     },
-    [dispatch]
+    [dispatch, state.projects]
+  );
+
+  const updateTile = useCallback(
+    async (
+      projectId: string,
+      tileId: string,
+      payload: { avatarSeed?: string | null }
+    ) => {
+      const project = state.projects.find((item) => item.id === projectId);
+      const tile = project?.tiles.find((item) => item.id === tileId);
+      if (tile) {
+        dispatch({ type: "updateTile", projectId, tileId, patch: payload });
+      }
+      try {
+        const result = await apiUpdateProjectTile(projectId, tileId, payload);
+        return { warnings: result.warnings };
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Failed to update tile.";
+        if (tile) {
+          dispatch({
+            type: "updateTile",
+            projectId,
+            tileId,
+            patch: { avatarSeed: tile.avatarSeed ?? null },
+          });
+        }
+        dispatch({ type: "setError", error: message });
+        return { error: message };
+      }
+    },
+    [dispatch, state.projects]
   );
 
   const value = useMemo<StoreContextValue>(() => {
@@ -396,6 +447,7 @@ export const AgentCanvasProvider = ({ children }: { children: ReactNode }) => {
       deleteProject,
       deleteTile,
       renameTile,
+      updateTile,
     };
   }, [
     state,
@@ -406,6 +458,7 @@ export const AgentCanvasProvider = ({ children }: { children: ReactNode }) => {
     deleteProject,
     deleteTile,
     renameTile,
+    updateTile,
   ]);
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

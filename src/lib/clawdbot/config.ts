@@ -5,7 +5,7 @@ import { resolveConfigPathCandidates, resolveStateDir } from "@/lib/clawdbot/pat
 
 type ClawdbotConfig = Record<string, unknown>;
 
-type AgentEntry = {
+export type AgentEntry = Record<string, unknown> & {
   id: string;
   name?: string;
   workspace?: string;
@@ -37,13 +37,13 @@ export const saveClawdbotConfig = (configPath: string, config: ClawdbotConfig) =
   fs.writeFileSync(configPath, JSON.stringify(config, null, 2), "utf8");
 };
 
-const readAgentList = (config: ClawdbotConfig): AgentEntry[] => {
+export const readAgentList = (config: Record<string, unknown>): AgentEntry[] => {
   const agents = (config.agents ?? {}) as Record<string, unknown>;
   const list = Array.isArray(agents.list) ? agents.list : [];
   return list.filter((entry): entry is AgentEntry => Boolean(entry && typeof entry === "object"));
 };
 
-const writeAgentList = (config: ClawdbotConfig, list: AgentEntry[]) => {
+export const writeAgentList = (config: Record<string, unknown>, list: AgentEntry[]) => {
   const agents = (config.agents ?? {}) as Record<string, unknown>;
   agents.list = list;
   config.agents = agents;

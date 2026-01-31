@@ -21,6 +21,7 @@ import {
   WORKSPACE_FILE_PLACEHOLDERS,
   type WorkspaceFileName,
 } from "@/lib/projects/workspaceFiles";
+import { X, History, Archive, RotateCcw, ChevronDown } from "lucide-react";
 
 const HEARTBEAT_INTERVAL_OPTIONS = ["15m", "30m", "1h", "2h", "6h", "12h", "24h"];
 
@@ -74,7 +75,17 @@ export const AgentInspectPanel = ({
   const [heartbeatActiveStart, setHeartbeatActiveStart] = useState("08:00");
   const [heartbeatActiveEnd, setHeartbeatActiveEnd] = useState("18:00");
   const [heartbeatAckMaxChars, setHeartbeatAckMaxChars] = useState("300");
+  const [expandedSections, setExpandedSections] = useState({
+    activity: true,
+    files: true,
+    settings: false,
+    heartbeat: false,
+  });
   const outputRef = useRef<HTMLDivElement | null>(null);
+
+  const toggleSection = (section: keyof typeof expandedSections) => {
+    setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
+  };
 
   const scrollOutputToBottom = useCallback(() => {
     const el = outputRef.current;
@@ -367,454 +378,495 @@ export const AgentInspectPanel = ({
   const hasActivity = activityBlocks.length > 0;
 
   return (
-    <div className="agent-inspect-panel" data-testid="agent-inspect-panel">
-      <div className="flex items-center justify-between border-b border-border px-4 py-3">
+    <div className="agent-inspect-panel flex flex-col" data-testid="agent-inspect-panel">
+      {/* Header */}
+      <div className="flex items-center justify-between border-b border-border px-5 py-4">
         <div>
-          <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Inspect
-          </div>
-          <div className="text-sm font-semibold text-foreground">{tile.name}</div>
+          <p className="text-xs font-medium text-muted-foreground">Inspect</p>
+          <h2 className="text-base font-semibold text-foreground">{tile.name}</h2>
         </div>
         <button
-          className="rounded-lg border border-border px-3 py-2 text-xs font-semibold uppercase text-muted-foreground"
+          className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           type="button"
           data-testid="agent-inspect-close"
           onClick={onClose}
+          aria-label="Close panel"
         >
-          Close
+          <X className="h-4 w-4" />
         </button>
       </div>
 
-      <div className="flex flex-col gap-4 p-4">
-        <section
-          className="rounded-lg bg-card p-4 shadow-sm"
-          data-testid="agent-inspect-activity"
-        >
-          <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            <span>Activity</span>
-            <span className="text-[11px] font-semibold uppercase text-muted-foreground">
-              {hasActivity ? "Transcript" : "No activity"}
-            </span>
-          </div>
-          {hasActivity ? (
-            <div
-              ref={outputRef}
-              className="mt-3 max-h-[420px] overflow-auto p-2 text-xs text-foreground"
-              onWheel={handleOutputWheel}
-            >
-              <div className="flex flex-col gap-4">
-                {activityBlocks.map((block, index) => (
-                  <div
-                    key={`${tile.id}-activity-${index}`}
-                    className="pb-4 last:pb-0"
-                  >
-                    {block.user ? (
-                      <div className="agent-markdown text-foreground">
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                          {`> ${block.user}`}
-                        </ReactMarkdown>
-                      </div>
-                    ) : null}
-                    {block.traces.length > 0 ? (
-                      <div className="mt-2 flex flex-col gap-2">
-                        {block.traces.map((trace, traceIndex) => (
-                          <details
-                            key={`${tile.id}-trace-${index}-${traceIndex}`}
-                            className="rounded-md bg-muted/60 px-2 py-1 text-[11px] text-muted-foreground"
-                          >
-                            <summary className="cursor-pointer select-none font-semibold">
-                              Thinking trace
-                            </summary>
-                            <div className="agent-markdown mt-1 text-foreground">
-                              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                {trace}
-                              </ReactMarkdown>
-                            </div>
-                          </details>
-                        ))}
-                      </div>
-                    ) : null}
-                    {block.assistant.length > 0 ? (
-                      <div className="mt-2 flex flex-col gap-2 text-foreground">
-                        {block.assistant.map((line, lineIndex) => (
-                          <div
-                            key={`${tile.id}-assistant-${index}-${lineIndex}`}
-                            className="agent-markdown"
-                          >
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto">
+        {/* Activity Section */}
+        <section className="border-b border-border" data-testid="agent-inspect-activity">
+          <button
+            type="button"
+            className="flex w-full items-center justify-between px-5 py-3 text-left"
+            onClick={() => toggleSection('activity')}
+          >
+            <span className="text-sm font-medium text-foreground">Activity</span>
+            <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${expandedSections.activity ? 'rotate-180' : ''}`} />
+          </button>
+          
+          {expandedSections.activity && (
+            <div className="px-5 pb-4">
+              {hasActivity ? (
+                <div
+                  ref={outputRef}
+                  className="max-h-[320px] overflow-auto rounded-lg bg-muted/50 p-4"
+                  onWheel={handleOutputWheel}
+                >
+                  <div className="flex flex-col gap-4">
+                    {activityBlocks.map((block, index) => (
+                      <div key={`${tile.id}-activity-${index}`} className="text-sm">
+                        {block.user && (
+                          <div className="mb-2 rounded-lg bg-primary/10 px-3 py-2 text-foreground">
                             <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                              {line}
+                              {block.user}
                             </ReactMarkdown>
                           </div>
-                        ))}
+                        )}
+                        {block.traces.length > 0 && (
+                          <div className="mb-2">
+                            {block.traces.map((trace, traceIndex) => (
+                              <details
+                                key={`${tile.id}-trace-${index}-${traceIndex}`}
+                                className="rounded-md border border-border bg-card px-3 py-2 text-xs"
+                              >
+                                <summary className="cursor-pointer select-none font-medium text-muted-foreground">
+                                  Thinking
+                                </summary>
+                                <div className="agent-markdown mt-2 text-muted-foreground">
+                                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                    {trace}
+                                  </ReactMarkdown>
+                                </div>
+                              </details>
+                            ))}
+                          </div>
+                        )}
+                        {block.assistant.length > 0 && (
+                          <div className="text-foreground">
+                            {block.assistant.map((line, lineIndex) => (
+                              <div key={`${tile.id}-assistant-${index}-${lineIndex}`} className="agent-markdown">
+                                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                  {line}
+                                </ReactMarkdown>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                    ) : null}
+                    ))}
                   </div>
-                ))}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center gap-3 rounded-lg bg-muted/50 py-8">
+                  <p className="text-sm text-muted-foreground">No activity yet</p>
+                  <button
+                    className="btn-secondary flex items-center gap-2 text-sm"
+                    type="button"
+                    onClick={onLoadHistory}
+                  >
+                    <History className="h-4 w-4" />
+                    Load history
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </section>
+
+        {/* Files Section */}
+        <section className="border-b border-border" data-testid="agent-inspect-files">
+          <button
+            type="button"
+            className="flex w-full items-center justify-between px-5 py-3 text-left"
+            onClick={() => toggleSection('files')}
+          >
+            <span className="text-sm font-medium text-foreground">Brain Files</span>
+            <div className="flex items-center gap-2">
+              {workspaceLoading && <span className="text-xs text-muted-foreground">Loading...</span>}
+              {workspaceDirty && <span className="text-xs text-primary">Unsaved</span>}
+              <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${expandedSections.files ? 'rotate-180' : ''}`} />
+            </div>
+          </button>
+          
+          {expandedSections.files && (
+            <div className="px-5 pb-4">
+              {workspaceError && (
+                <div className="mb-3 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                  {workspaceError}
+                </div>
+              )}
+              
+              {/* Tabs */}
+              <div className="flex gap-1 rounded-lg bg-muted p-1">
+                {WORKSPACE_FILE_NAMES.map((name) => {
+                  const active = name === workspaceTab;
+                  const label = WORKSPACE_FILE_META[name].title.replace(".md", "");
+                  return (
+                    <button
+                      key={name}
+                      type="button"
+                      className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                        active
+                          ? "bg-card text-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                      onClick={() => handleWorkspaceTabChange(name)}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Editor */}
+              <div className="mt-3">
+                <div className="mb-2 flex items-center justify-between">
+                  <p className="text-xs text-muted-foreground">
+                    {WORKSPACE_FILE_META[workspaceTab].hint}
+                  </p>
+                  {!workspaceFiles[workspaceTab].exists && (
+                    <span className="rounded bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                      New
+                    </span>
+                  )}
+                </div>
+                <textarea
+                  className="input min-h-[200px] resize-y font-mono text-xs"
+                  value={workspaceFiles[workspaceTab].content}
+                  placeholder={
+                    workspaceFiles[workspaceTab].content.trim().length === 0
+                      ? WORKSPACE_FILE_PLACEHOLDERS[workspaceTab]
+                      : undefined
+                  }
+                  disabled={workspaceLoading || workspaceSaving}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    setWorkspaceFiles((prev) => ({
+                      ...prev,
+                      [workspaceTab]: { ...prev[workspaceTab], content: value },
+                    }));
+                    setWorkspaceDirty(true);
+                  }}
+                />
               </div>
             </div>
-          ) : (
-            <div className="mt-3">
+          )}
+        </section>
+
+        {/* Settings Section */}
+        <section className="border-b border-border" data-testid="agent-inspect-settings">
+          <button
+            type="button"
+            className="flex w-full items-center justify-between px-5 py-3 text-left"
+            onClick={() => toggleSection('settings')}
+          >
+            <span className="text-sm font-medium text-foreground">Settings</span>
+            <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${expandedSections.settings ? 'rotate-180' : ''}`} />
+          </button>
+          
+          {expandedSections.settings && (
+            <div className="space-y-4 px-5 pb-4">
+              {/* Model selector */}
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                  Model
+                </label>
+                <select
+                  className="input text-sm"
+                  value={tile.model ?? ""}
+                  onChange={(event) => {
+                    const value = event.target.value.trim();
+                    onModelChange(value ? value : null);
+                  }}
+                >
+                  {modelOptionsWithFallback.length === 0 ? (
+                    <option value="">No models found</option>
+                  ) : null}
+                  {modelOptionsWithFallback.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Thinking selector */}
+              {allowThinking && (
+                <div>
+                  <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                    Thinking Level
+                  </label>
+                  <select
+                    className="input text-sm"
+                    value={tile.thinkingLevel ?? ""}
+                    onChange={(event) => {
+                      const value = event.target.value.trim();
+                      onThinkingChange(value ? value : null);
+                    }}
+                  >
+                    <option value="">Default</option>
+                    <option value="off">Off</option>
+                    <option value="minimal">Minimal</option>
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                    <option value="xhigh">XHigh</option>
+                  </select>
+                </div>
+              )}
+
+              {/* Archive/Restore */}
               <button
-                className="rounded-lg border border-border px-3 py-2 text-[11px] font-semibold text-muted-foreground hover:bg-card"
+                className={`flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors ${
+                  tile.archivedAt
+                    ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                    : "bg-destructive/10 text-destructive hover:bg-destructive/20"
+                }`}
                 type="button"
-                onClick={(event) => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                  onLoadHistory();
-                }}
+                onClick={onDelete}
               >
-                Load history
+                {tile.archivedAt ? (
+                  <>
+                    <RotateCcw className="h-4 w-4" />
+                    Restore Agent
+                  </>
+                ) : (
+                  <>
+                    <Archive className="h-4 w-4" />
+                    Archive Agent
+                  </>
+                )}
               </button>
             </div>
           )}
         </section>
 
-        <section
-          className="flex min-h-[420px] flex-1 flex-col rounded-lg border border-border bg-card p-4"
-          data-testid="agent-inspect-files"
-        >
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Brain files
-            </div>
-            <div className="text-[11px] font-semibold uppercase text-muted-foreground">
-              {workspaceLoading
-                ? "Loading..."
-                : workspaceDirty
-                  ? "Saving on tab change"
-                  : "All changes saved"}
-            </div>
-          </div>
-          {workspaceError ? (
-            <div className="mt-3 rounded-lg border border-destructive bg-destructive px-3 py-2 text-xs text-destructive-foreground">
-              {workspaceError}
-            </div>
-          ) : null}
-          <div className="mt-4 flex flex-wrap items-end gap-2">
-            {WORKSPACE_FILE_NAMES.map((name) => {
-              const active = name === workspaceTab;
-              const label = WORKSPACE_FILE_META[name].title.replace(".md", "");
-              return (
-                <button
-                  key={name}
-                  type="button"
-                  className={`rounded-t-lg border px-3 py-2 text-[11px] font-semibold uppercase tracking-wide transition ${
-                    active
-                      ? "border-border bg-card text-foreground shadow-sm"
-                      : "border-transparent bg-muted text-muted-foreground hover:bg-card"
-                  }`}
-                  onClick={() => handleWorkspaceTabChange(name)}
-                >
-                  {label}
-                </button>
-              );
-            })}
-          </div>
-          <div className="mt-3 flex-1 overflow-auto rounded-lg bg-muted/40 p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <div className="text-sm font-semibold text-foreground">
-                  {WORKSPACE_FILE_META[workspaceTab].title}
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  {WORKSPACE_FILE_META[workspaceTab].hint}
-                </div>
-              </div>
-              {!workspaceFiles[workspaceTab].exists ? (
-                <span className="rounded-md border border-border bg-accent px-2 py-1 text-[10px] font-semibold uppercase text-accent-foreground">
-                  new
-                </span>
-              ) : null}
-            </div>
-
-            <textarea
-              className="mt-4 min-h-[220px] w-full resize-y rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground outline-none"
-              value={workspaceFiles[workspaceTab].content}
-              placeholder={
-                workspaceFiles[workspaceTab].content.trim().length === 0
-                  ? WORKSPACE_FILE_PLACEHOLDERS[workspaceTab]
-                  : undefined
-              }
-              disabled={workspaceLoading || workspaceSaving}
-              onChange={(event) => {
-                const value = event.target.value;
-                setWorkspaceFiles((prev) => ({
-                  ...prev,
-                  [workspaceTab]: { ...prev[workspaceTab], content: value },
-                }));
-                setWorkspaceDirty(true);
-              }}
-            />
-          </div>
-          <div className="mt-4 flex items-center justify-between gap-2 border-t border-border pt-4">
-            <div className="text-xs text-muted-foreground">
-              {workspaceDirty ? "Auto-save on tab switch." : "Up to date."}
-            </div>
-          </div>
-        </section>
-
-        <section
-          className="rounded-lg border border-border bg-card p-4"
-          data-testid="agent-inspect-settings"
-        >
-          <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Settings
-          </div>
-          <div className="mt-3 grid gap-3 md:grid-cols-[1.2fr_1fr]">
-            <label className="flex min-w-0 flex-col gap-2 text-xs font-semibold uppercase text-muted-foreground">
-              <span>Model</span>
-              <select
-                className="h-10 w-full min-w-0 overflow-hidden text-ellipsis whitespace-nowrap rounded-lg border border-border bg-card px-3 text-xs font-semibold text-foreground"
-                value={tile.model ?? ""}
-                onChange={(event) => {
-                  const value = event.target.value.trim();
-                  onModelChange(value ? value : null);
-                }}
-              >
-                {modelOptionsWithFallback.length === 0 ? (
-                  <option value="">No models found</option>
-                ) : null}
-                {modelOptionsWithFallback.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            {allowThinking ? (
-              <label className="flex flex-col gap-2 text-xs font-semibold uppercase text-muted-foreground">
-                <span>Thinking</span>
-                <select
-                  className="h-10 rounded-lg border border-border bg-card px-3 text-xs font-semibold text-foreground"
-                  value={tile.thinkingLevel ?? ""}
-                  onChange={(event) => {
-                    const value = event.target.value.trim();
-                    onThinkingChange(value ? value : null);
-                  }}
-                >
-                  <option value="">Default</option>
-                  <option value="off">Off</option>
-                  <option value="minimal">Minimal</option>
-                  <option value="low">Low</option>
-                  <option value="medium">Medium</option>
-                  <option value="high">High</option>
-                  <option value="xhigh">XHigh</option>
-                </select>
-              </label>
-            ) : (
-              <div />
-            )}
-          </div>
-
+        {/* Heartbeat Section */}
+        <section data-testid="agent-inspect-heartbeat">
           <button
-            className="mt-4 w-full max-w-xs rounded-lg border border-destructive bg-destructive px-3 py-2 text-xs font-semibold uppercase text-destructive-foreground"
             type="button"
-            onClick={onDelete}
+            className="flex w-full items-center justify-between px-5 py-3 text-left"
+            onClick={() => toggleSection('heartbeat')}
           >
-            {tile.archivedAt ? "Restore agent" : "Archive agent"}
-          </button>
-
-          <div className="mt-4 rounded-lg border border-border bg-card p-4">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Heartbeat config
-              </div>
-              <div className="text-[11px] font-semibold uppercase text-muted-foreground">
-                {heartbeatLoading
-                  ? "Loading..."
-                  : heartbeatDirty
-                    ? "Unsaved changes"
-                    : "All changes saved"}
-              </div>
+            <span className="text-sm font-medium text-foreground">Heartbeat</span>
+            <div className="flex items-center gap-2">
+              {heartbeatLoading && <span className="text-xs text-muted-foreground">Loading...</span>}
+              {heartbeatDirty && <span className="text-xs text-primary">Unsaved</span>}
+              <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${expandedSections.heartbeat ? 'rotate-180' : ''}`} />
             </div>
-            {heartbeatError ? (
-              <div className="mt-3 rounded-lg border border-destructive bg-destructive px-3 py-2 text-xs text-destructive-foreground">
-                {heartbeatError}
-              </div>
-            ) : null}
-            <label className="mt-4 flex items-center justify-between gap-3 text-xs font-semibold uppercase text-muted-foreground">
-              <span>Override defaults</span>
-              <input
-                type="checkbox"
-                className="h-4 w-4 rounded border-input text-foreground"
-                checked={heartbeatOverride}
-                disabled={heartbeatLoading || heartbeatSaving}
-                onChange={(event) => {
-                  setHeartbeatOverride(event.target.checked);
-                  setHeartbeatDirty(true);
-                }}
-              />
-            </label>
-            <label className="mt-4 flex items-center justify-between gap-3 text-xs font-semibold uppercase text-muted-foreground">
-              <span>Enabled</span>
-              <input
-                type="checkbox"
-                className="h-4 w-4 rounded border-input text-foreground"
-                checked={heartbeatEnabled}
-                disabled={heartbeatLoading || heartbeatSaving}
-                onChange={(event) => {
-                  setHeartbeatEnabled(event.target.checked);
-                  setHeartbeatOverride(true);
-                  setHeartbeatDirty(true);
-                }}
-              />
-            </label>
-            <label className="mt-4 flex flex-col gap-2 text-xs font-semibold uppercase text-muted-foreground">
-              <span>Interval</span>
-              <select
-                className="h-10 rounded-lg border border-border bg-card px-3 text-xs font-semibold text-foreground"
-                value={heartbeatIntervalMode === "custom" ? "custom" : heartbeatEvery}
-                disabled={heartbeatLoading || heartbeatSaving}
-                onChange={(event) => {
-                  const value = event.target.value;
-                  if (value === "custom") {
-                    setHeartbeatIntervalMode("custom");
-                  } else {
-                    setHeartbeatIntervalMode("preset");
-                    setHeartbeatEvery(value);
-                  }
-                  setHeartbeatOverride(true);
-                  setHeartbeatDirty(true);
-                }}
-              >
-                {HEARTBEAT_INTERVAL_OPTIONS.map((option) => (
-                  <option key={option} value={option}>
-                    Every {option}
-                  </option>
-                ))}
-                <option value="custom">Custom</option>
-              </select>
-            </label>
-            {heartbeatIntervalMode === "custom" ? (
-              <input
-                type="number"
-                min={1}
-                className="mt-2 h-10 w-full rounded-lg border border-border bg-card px-3 text-xs text-foreground outline-none"
-                value={heartbeatCustomMinutes}
-                disabled={heartbeatLoading || heartbeatSaving}
-                onChange={(event) => {
-                  setHeartbeatCustomMinutes(event.target.value);
-                  setHeartbeatOverride(true);
-                  setHeartbeatDirty(true);
-                }}
-                placeholder="Minutes"
-              />
-            ) : null}
-            <label className="mt-4 flex flex-col gap-2 text-xs font-semibold uppercase text-muted-foreground">
-              <span>Target</span>
-              <select
-                className="h-10 rounded-lg border border-border bg-card px-3 text-xs font-semibold text-foreground"
-                value={heartbeatTargetMode}
-                disabled={heartbeatLoading || heartbeatSaving}
-                onChange={(event) => {
-                  setHeartbeatTargetMode(
-                    event.target.value as "last" | "none" | "custom"
-                  );
-                  setHeartbeatOverride(true);
-                  setHeartbeatDirty(true);
-                }}
-              >
-                <option value="last">Last channel</option>
-                <option value="none">No delivery</option>
-                <option value="custom">Custom</option>
-              </select>
-            </label>
-            {heartbeatTargetMode === "custom" ? (
-              <input
-                className="mt-2 h-10 w-full rounded-lg border border-border bg-card px-3 text-xs text-foreground outline-none"
-                value={heartbeatTargetCustom}
-                disabled={heartbeatLoading || heartbeatSaving}
-                onChange={(event) => {
-                  setHeartbeatTargetCustom(event.target.value);
-                  setHeartbeatOverride(true);
-                  setHeartbeatDirty(true);
-                }}
-                placeholder="Channel id (e.g., whatsapp)"
-              />
-            ) : null}
-            <label className="mt-4 flex items-center justify-between gap-3 text-xs font-semibold uppercase text-muted-foreground">
-              <span>Include reasoning</span>
-              <input
-                type="checkbox"
-                className="h-4 w-4 rounded border-input text-foreground"
-                checked={heartbeatIncludeReasoning}
-                disabled={heartbeatLoading || heartbeatSaving}
-                onChange={(event) => {
-                  setHeartbeatIncludeReasoning(event.target.checked);
-                  setHeartbeatOverride(true);
-                  setHeartbeatDirty(true);
-                }}
-              />
-            </label>
-            <label className="mt-4 flex items-center justify-between gap-3 text-xs font-semibold uppercase text-muted-foreground">
-              <span>Active hours</span>
-              <input
-                type="checkbox"
-                className="h-4 w-4 rounded border-input text-foreground"
-                checked={heartbeatActiveHoursEnabled}
-                disabled={heartbeatLoading || heartbeatSaving}
-                onChange={(event) => {
-                  setHeartbeatActiveHoursEnabled(event.target.checked);
-                  setHeartbeatOverride(true);
-                  setHeartbeatDirty(true);
-                }}
-              />
-            </label>
-            {heartbeatActiveHoursEnabled ? (
-              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+          </button>
+          
+          {expandedSections.heartbeat && (
+            <div className="space-y-4 px-5 pb-4">
+              {heartbeatError && (
+                <div className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                  {heartbeatError}
+                </div>
+              )}
+
+              {/* Override toggle */}
+              <label className="flex items-center justify-between">
+                <span className="text-sm text-foreground">Override defaults</span>
                 <input
-                  type="time"
-                  className="h-10 w-full rounded-lg border border-border bg-card px-3 text-xs text-foreground outline-none"
-                  value={heartbeatActiveStart}
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-border text-primary focus:ring-primary/20"
+                  checked={heartbeatOverride}
                   disabled={heartbeatLoading || heartbeatSaving}
                   onChange={(event) => {
-                    setHeartbeatActiveStart(event.target.value);
+                    setHeartbeatOverride(event.target.checked);
+                    setHeartbeatDirty(true);
+                  }}
+                />
+              </label>
+
+              {/* Enabled toggle */}
+              <label className="flex items-center justify-between">
+                <span className="text-sm text-foreground">Enabled</span>
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-border text-primary focus:ring-primary/20"
+                  checked={heartbeatEnabled}
+                  disabled={heartbeatLoading || heartbeatSaving}
+                  onChange={(event) => {
+                    setHeartbeatEnabled(event.target.checked);
                     setHeartbeatOverride(true);
                     setHeartbeatDirty(true);
                   }}
                 />
-                <input
-                  type="time"
-                  className="h-10 w-full rounded-lg border border-border bg-card px-3 text-xs text-foreground outline-none"
-                  value={heartbeatActiveEnd}
+              </label>
+
+              {/* Interval */}
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                  Interval
+                </label>
+                <select
+                  className="input text-sm"
+                  value={heartbeatIntervalMode === "custom" ? "custom" : heartbeatEvery}
                   disabled={heartbeatLoading || heartbeatSaving}
                   onChange={(event) => {
-                    setHeartbeatActiveEnd(event.target.value);
+                    const value = event.target.value;
+                    if (value === "custom") {
+                      setHeartbeatIntervalMode("custom");
+                    } else {
+                      setHeartbeatIntervalMode("preset");
+                      setHeartbeatEvery(value);
+                    }
+                    setHeartbeatOverride(true);
+                    setHeartbeatDirty(true);
+                  }}
+                >
+                  {HEARTBEAT_INTERVAL_OPTIONS.map((option) => (
+                    <option key={option} value={option}>
+                      Every {option}
+                    </option>
+                  ))}
+                  <option value="custom">Custom</option>
+                </select>
+                {heartbeatIntervalMode === "custom" && (
+                  <input
+                    type="number"
+                    min={1}
+                    className="input mt-2 text-sm"
+                    value={heartbeatCustomMinutes}
+                    disabled={heartbeatLoading || heartbeatSaving}
+                    onChange={(event) => {
+                      setHeartbeatCustomMinutes(event.target.value);
+                      setHeartbeatOverride(true);
+                      setHeartbeatDirty(true);
+                    }}
+                    placeholder="Minutes"
+                  />
+                )}
+              </div>
+
+              {/* Target */}
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                  Target
+                </label>
+                <select
+                  className="input text-sm"
+                  value={heartbeatTargetMode}
+                  disabled={heartbeatLoading || heartbeatSaving}
+                  onChange={(event) => {
+                    setHeartbeatTargetMode(event.target.value as "last" | "none" | "custom");
+                    setHeartbeatOverride(true);
+                    setHeartbeatDirty(true);
+                  }}
+                >
+                  <option value="last">Last channel</option>
+                  <option value="none">No delivery</option>
+                  <option value="custom">Custom</option>
+                </select>
+                {heartbeatTargetMode === "custom" && (
+                  <input
+                    className="input mt-2 text-sm"
+                    value={heartbeatTargetCustom}
+                    disabled={heartbeatLoading || heartbeatSaving}
+                    onChange={(event) => {
+                      setHeartbeatTargetCustom(event.target.value);
+                      setHeartbeatOverride(true);
+                      setHeartbeatDirty(true);
+                    }}
+                    placeholder="Channel id"
+                  />
+                )}
+              </div>
+
+              {/* Include reasoning */}
+              <label className="flex items-center justify-between">
+                <span className="text-sm text-foreground">Include reasoning</span>
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-border text-primary focus:ring-primary/20"
+                  checked={heartbeatIncludeReasoning}
+                  disabled={heartbeatLoading || heartbeatSaving}
+                  onChange={(event) => {
+                    setHeartbeatIncludeReasoning(event.target.checked);
+                    setHeartbeatOverride(true);
+                    setHeartbeatDirty(true);
+                  }}
+                />
+              </label>
+
+              {/* Active hours */}
+              <label className="flex items-center justify-between">
+                <span className="text-sm text-foreground">Active hours</span>
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-border text-primary focus:ring-primary/20"
+                  checked={heartbeatActiveHoursEnabled}
+                  disabled={heartbeatLoading || heartbeatSaving}
+                  onChange={(event) => {
+                    setHeartbeatActiveHoursEnabled(event.target.checked);
+                    setHeartbeatOverride(true);
+                    setHeartbeatDirty(true);
+                  }}
+                />
+              </label>
+              {heartbeatActiveHoursEnabled && (
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="time"
+                    className="input text-sm"
+                    value={heartbeatActiveStart}
+                    disabled={heartbeatLoading || heartbeatSaving}
+                    onChange={(event) => {
+                      setHeartbeatActiveStart(event.target.value);
+                      setHeartbeatOverride(true);
+                      setHeartbeatDirty(true);
+                    }}
+                  />
+                  <input
+                    type="time"
+                    className="input text-sm"
+                    value={heartbeatActiveEnd}
+                    disabled={heartbeatLoading || heartbeatSaving}
+                    onChange={(event) => {
+                      setHeartbeatActiveEnd(event.target.value);
+                      setHeartbeatOverride(true);
+                      setHeartbeatDirty(true);
+                    }}
+                  />
+                </div>
+              )}
+
+              {/* ACK max chars */}
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                  ACK max chars
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  className="input text-sm"
+                  value={heartbeatAckMaxChars}
+                  disabled={heartbeatLoading || heartbeatSaving}
+                  onChange={(event) => {
+                    setHeartbeatAckMaxChars(event.target.value);
                     setHeartbeatOverride(true);
                     setHeartbeatDirty(true);
                   }}
                 />
               </div>
-            ) : null}
-            <label className="mt-4 flex flex-col gap-2 text-xs font-semibold uppercase text-muted-foreground">
-              <span>ACK max chars</span>
-              <input
-                type="number"
-                min={0}
-                className="h-10 w-full rounded-lg border border-border bg-card px-3 text-xs text-foreground outline-none"
-                value={heartbeatAckMaxChars}
-                disabled={heartbeatLoading || heartbeatSaving}
-                onChange={(event) => {
-                  setHeartbeatAckMaxChars(event.target.value);
-                  setHeartbeatOverride(true);
-                  setHeartbeatDirty(true);
-                }}
-              />
-            </label>
-            <div className="mt-4 flex items-center justify-between gap-2">
-              <div className="text-xs text-muted-foreground">
-                {heartbeatDirty ? "Remember to save changes." : "Up to date."}
-              </div>
+
+              {/* Save button */}
               <button
-                className="rounded-lg border border-transparent bg-primary px-4 py-2 text-xs font-semibold uppercase text-primary-foreground disabled:cursor-not-allowed disabled:border-border disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100"
+                className="btn-primary w-full disabled:opacity-50"
                 type="button"
                 disabled={heartbeatLoading || heartbeatSaving || !heartbeatDirty}
                 onClick={() => void saveHeartbeat()}
               >
-                {heartbeatSaving ? "Saving..." : "Save heartbeat"}
+                {heartbeatSaving ? "Saving..." : "Save Changes"}
               </button>
             </div>
-          </div>
+          )}
         </section>
       </div>
     </div>

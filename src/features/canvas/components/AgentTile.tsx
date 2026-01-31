@@ -4,7 +4,7 @@ import type { AgentTile as AgentTileType, TileSize } from "@/features/canvas/sta
 import { isTraceMarkdown } from "@/lib/text/extractThinking";
 import { extractSummaryText } from "@/lib/text/summary";
 import { normalizeAgentName } from "@/lib/names/agentNames";
-import { Shuffle } from "lucide-react";
+import { MoreHorizontal, Send, Eye } from "lucide-react";
 import { MAX_TILE_HEIGHT, MIN_TILE_SIZE } from "@/lib/canvasTileDefaults";
 import { AgentAvatar } from "./AgentAvatar";
 
@@ -205,18 +205,25 @@ export const AgentTile = ({
     setNameDraft(next);
   };
 
-  const statusColor =
-    tile.status === "running"
-      ? "bg-primary text-primary-foreground"
-      : tile.status === "error"
-        ? "bg-destructive text-destructive-foreground"
-        : "bg-accent text-accent-foreground border border-border shadow-sm";
-  const statusLabel =
-    tile.status === "running"
-      ? "Running"
-      : tile.status === "error"
-        ? "Error"
-        : "Waiting for direction";
+  const statusConfig = {
+    running: {
+      dot: "bg-primary",
+      label: "Running",
+      badge: "status-running",
+    },
+    error: {
+      dot: "bg-destructive",
+      label: "Error",
+      badge: "status-error",
+    },
+    idle: {
+      dot: "bg-muted-foreground/40",
+      label: "Idle",
+      badge: "status-idle",
+    },
+  };
+
+  const status = statusConfig[tile.status] || statusConfig.idle;
 
   const latestUpdate = (() => {
     const lastResult = tile.lastResult?.trim();
@@ -232,10 +239,11 @@ export const AgentTile = ({
     }
     const latestPreview = tile.latestPreview?.trim();
     if (latestPreview) return latestPreview;
-    return "No updates yet.";
+    return "Waiting for activity...";
   })();
+
   const latestSummary =
-    latestUpdate === "No updates yet."
+    latestUpdate === "Waiting for activity..."
       ? latestUpdate
       : extractSummaryText(latestUpdate);
 
@@ -245,140 +253,135 @@ export const AgentTile = ({
     : "pointer-events-none opacity-0 group-hover:pointer-events-auto group-hover:opacity-100";
 
   return (
-    <div data-tile className="group relative flex h-full w-full flex-col gap-3">
-      <div className="flex flex-col gap-3 px-4 pt-4 pb-4">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex flex-1 flex-col items-center gap-2">
-            <div
-              className={`flex items-center gap-2 rounded-lg border bg-card px-3 py-1 shadow-sm ${
-                isSelected ? "agent-name-selected" : "border-border"
-              }`}
-            >
+    <div data-tile className="group relative flex h-full w-full flex-col">
+      {/* Card container */}
+      <div className={`
+        flex flex-1 flex-col rounded-xl border bg-card
+        transition-shadow duration-200
+        ${isSelected 
+          ? "border-primary/50 shadow-lg ring-1 ring-primary/20" 
+          : "border-border shadow-sm hover:shadow-md"
+        }
+      `}>
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-border px-4 py-3">
+          <div className="flex items-center gap-3">
+            <div data-drag-handle className="cursor-grab active:cursor-grabbing">
+              <AgentAvatar
+                seed={avatarSeed}
+                name={tile.name}
+                size={36}
+                isSelected={isSelected}
+              />
+            </div>
+            <div className="flex flex-col">
               <input
-                className="w-full bg-transparent text-center text-xs font-semibold uppercase tracking-wide text-foreground outline-none"
+                className="bg-transparent text-sm font-semibold text-foreground outline-none placeholder:text-muted-foreground"
                 value={nameDraft}
                 onChange={(event) => setNameDraft(event.target.value)}
-                onBlur={() => {
-                  void commitName();
-                }}
+                onBlur={() => void commitName()}
                 onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.currentTarget.blur();
-                  }
+                  if (event.key === "Enter") event.currentTarget.blur();
                   if (event.key === "Escape") {
                     setNameDraft(tile.name);
                     event.currentTarget.blur();
                   }
                 }}
               />
-              <button
-                className="nodrag flex h-6 w-6 items-center justify-center rounded-md border border-border bg-card text-muted-foreground hover:bg-card"
-                type="button"
-                aria-label="Shuffle name"
-                data-testid="agent-name-shuffle"
-                onClick={(event) => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                  onNameShuffle();
-                }}
-              >
-                <Shuffle className="h-3 w-3" />
-              </button>
-            </div>
-            <div className="relative">
-              <div data-drag-handle>
-                <AgentAvatar
-                  seed={avatarSeed}
-                  name={tile.name}
-                  size={120}
-                  isSelected={isSelected}
-                />
+              <div className="flex items-center gap-1.5">
+                <span className={`h-1.5 w-1.5 rounded-full ${status.dot}`} />
+                <span className="text-xs text-muted-foreground">{status.label}</span>
               </div>
-              <button
-                className="nodrag absolute -bottom-2 -right-2 flex h-8 w-8 items-center justify-center rounded-md border border-border bg-card text-muted-foreground shadow-sm hover:bg-card"
-                type="button"
-                aria-label="Shuffle avatar"
-                data-testid="agent-avatar-shuffle"
-                onClick={(event) => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                  onAvatarShuffle();
-                }}
-              >
-                <Shuffle className="h-4 w-4" />
-              </button>
             </div>
           </div>
-        </div>
-        <div className="rounded-lg border border-border bg-card px-3 py-2">
-          <div className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-            <span>Latest update</span>
-            <span
-              className={`rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${statusColor}`}
-            >
-              {statusLabel}
-            </span>
-          </div>
-          <div className="mt-2 text-xs text-foreground">{latestSummary}</div>
-        </div>
-        <div className="mt-2 flex items-end gap-2">
-          <div className="relative">
+          
+          <div className="flex items-center gap-1">
             <button
-              className="nodrag rounded-lg border border-border px-3 py-2 text-[11px] font-semibold text-muted-foreground hover:bg-card"
+              className="nodrag flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               type="button"
+              aria-label="Inspect agent"
               data-testid="agent-inspect-toggle"
-              onClick={(event) => {
-                onInspect();
+              onClick={onInspect}
+            >
+              <Eye className="h-4 w-4" />
+            </button>
+            <button
+              className="nodrag flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              type="button"
+              aria-label="More options"
+              onClick={(e) => {
+                e.stopPropagation();
+                // Toggle between avatar and name shuffle on click
+                onAvatarShuffle();
               }}
             >
-              Inspect
+              <MoreHorizontal className="h-4 w-4" />
             </button>
           </div>
-          <textarea
-            ref={draftRef}
-            rows={1}
-            className="max-h-28 flex-1 resize-none overflow-hidden rounded-lg border border-border bg-card px-3 py-2 text-[11px] text-foreground outline-none"
-            value={tile.draft}
-            onChange={(event) => {
-              onDraftChange(event.target.value);
-              resizeDraft();
-            }}
-            onKeyDown={(event) => {
-              if (event.key !== "Enter" || event.shiftKey) return;
-              event.preventDefault();
-              if (!canSend || tile.status === "running") return;
-              const message = tile.draft.trim();
-              if (!message) return;
-              onSend(message);
-            }}
-            placeholder="type a message"
-          />
-          <button
-            className="rounded-lg border border-transparent bg-primary px-3 py-2 text-[11px] font-semibold text-primary-foreground shadow-sm transition hover:brightness-105 disabled:cursor-not-allowed disabled:border-border disabled:bg-muted disabled:text-muted-foreground disabled:shadow-none"
-            type="button"
-            onClick={() => onSend(tile.draft)}
-            disabled={!canSend || tile.status === "running" || !tile.draft.trim()}
-          >
-            Send
-          </button>
+        </div>
+
+        {/* Content area */}
+        <div className="flex flex-1 flex-col gap-3 p-4">
+          {/* Latest update */}
+          <div className="flex-1 overflow-hidden">
+            <p className="text-overline mb-2">Latest update</p>
+            <p className="line-clamp-4 text-sm text-foreground/80 leading-relaxed">
+              {latestSummary}
+            </p>
+          </div>
+
+          {/* Input area */}
+          <div className="flex items-end gap-2">
+            <div className="relative flex-1">
+              <textarea
+                ref={draftRef}
+                rows={1}
+                className="input max-h-24 min-h-[42px] resize-none pr-10"
+                value={tile.draft}
+                onChange={(event) => {
+                  onDraftChange(event.target.value);
+                  resizeDraft();
+                }}
+                onKeyDown={(event) => {
+                  if (event.key !== "Enter" || event.shiftKey) return;
+                  event.preventDefault();
+                  if (!canSend || tile.status === "running") return;
+                  const message = tile.draft.trim();
+                  if (!message) return;
+                  onSend(message);
+                }}
+                placeholder="Send a message..."
+              />
+              <button
+                className="absolute bottom-2 right-2 flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground transition-all hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground"
+                type="button"
+                onClick={() => onSend(tile.draft)}
+                disabled={!canSend || tile.status === "running" || !tile.draft.trim()}
+                aria-label="Send message"
+              >
+                <Send className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
+      {/* Resize handles */}
       <button
         type="button"
-        aria-label="Resize tile"
-        className={`nodrag absolute -bottom-2 left-6 right-6 flex h-4 cursor-row-resize touch-none items-center justify-center transition-opacity ${resizeHandleClass}`}
+        aria-label="Resize tile height"
+        className={`nodrag absolute -bottom-1.5 left-8 right-8 flex h-3 cursor-row-resize touch-none items-center justify-center transition-opacity ${resizeHandleClass}`}
         onPointerDown={startHeightResize}
       >
-        <span className="h-1.5 w-16 rounded-full bg-border shadow-sm" />
+        <span className="h-1 w-12 rounded-full bg-border" />
       </button>
       <button
         type="button"
         aria-label="Resize tile width"
-        className={`nodrag absolute -right-2 top-6 bottom-6 flex w-4 cursor-col-resize touch-none items-center justify-center transition-opacity ${resizeHandleClass}`}
+        className={`nodrag absolute -right-1.5 top-8 bottom-8 flex w-3 cursor-col-resize touch-none items-center justify-center transition-opacity ${resizeHandleClass}`}
         onPointerDown={startWidthResize}
       >
-        <span className="h-16 w-1.5 rounded-full bg-border shadow-sm" />
+        <span className="h-12 w-1 rounded-full bg-border" />
       </button>
     </div>
   );

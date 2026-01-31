@@ -2,6 +2,7 @@
   display: block;
   white-space: pre-wrap;
   word-break: break-word;
+  line-height: 1.6;
 }
 
 .agent-markdown p {
@@ -14,7 +15,7 @@
 .agent-markdown pre,
 .agent-markdown blockquote,
 .agent-markdown table {
-  margin-top: 0.35rem;
+  margin-top: 0.5rem;
 }
 
 .agent-markdown h1,
@@ -23,7 +24,21 @@
 .agent-markdown h4,
 .agent-markdown h5,
 .agent-markdown h6 {
-  margin: 0 0 0.25rem 0;
+  margin: 0 0 0.375rem 0;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.agent-markdown h1 {
+  font-size: 1.25rem;
+}
+
+.agent-markdown h2 {
+  font-size: 1.125rem;
+}
+
+.agent-markdown h3 {
+  font-size: 1rem;
 }
 
 .agent-markdown h1 + p,
@@ -44,60 +59,96 @@
 .agent-markdown h4 + ol,
 .agent-markdown h5 + ol,
 .agent-markdown h6 + ol {
-  margin-top: 0.15rem;
+  margin-top: 0.25rem;
 }
 
 .agent-markdown ul,
 .agent-markdown ol {
-  padding-left: 1.1rem;
+  padding-left: 1.25rem;
 }
 
 .agent-markdown li {
-  margin-top: 0.15rem;
+  margin-top: 0.25rem;
+}
+
+.agent-markdown li::marker {
+  color: var(--muted-foreground);
 }
 
 .agent-markdown code {
   font-family: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
     "Liberation Mono", "Courier New", monospace;
-  font-size: 0.85em;
+  font-size: 0.875em;
   background: var(--muted);
-  padding: 0.1rem 0.25rem;
+  padding: 0.125rem 0.375rem;
   border-radius: 0.25rem;
+  color: var(--foreground);
 }
 
 .agent-markdown pre {
   background: var(--muted);
+  border: 1px solid var(--border);
   border-radius: 0.5rem;
-  padding: 0.6rem 0.75rem;
+  padding: 0.75rem 1rem;
   overflow-x: auto;
+  font-size: 0.875rem;
 }
 
 .agent-markdown pre code {
   background: transparent;
   padding: 0;
-  font-size: 0.85em;
+  font-size: inherit;
+  border: none;
 }
 
 .agent-markdown blockquote {
-  border-left: 3px solid var(--border);
-  padding-left: 0.75rem;
+  border-left: 2px solid var(--primary);
+  padding-left: 1rem;
   color: var(--muted-foreground);
+  font-style: italic;
 }
 
 .agent-markdown table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.85em;
+  font-size: 0.875rem;
+  margin-top: 0.5rem;
 }
 
-.agent-markdown th,
+.agent-markdown th {
+  border: 1px solid var(--border);
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  background: var(--muted);
+  font-weight: 600;
+}
+
 .agent-markdown td {
   border: 1px solid var(--border);
-  padding: 0.3rem 0.5rem;
+  padding: 0.5rem 0.75rem;
   text-align: left;
 }
 
 .agent-markdown a {
   color: var(--primary);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.agent-markdown a:hover {
   text-decoration: underline;
+}
+
+.agent-markdown hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 1rem 0;
+}
+
+.agent-markdown strong {
+  font-weight: 600;
+}
+
+.agent-markdown em {
+  font-style: italic;
 }

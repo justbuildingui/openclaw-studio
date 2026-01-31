@@ -8,7 +8,7 @@ const THEME_STORAGE_KEY = "theme";
 type ThemeMode = "light" | "dark";
 
 const getPreferredTheme = (): ThemeMode => {
-  if (typeof window === "undefined") return "light";
+  if (typeof window === "undefined") return "dark";
   const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
   if (stored === "light" || stored === "dark") return stored;
   const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
@@ -21,7 +21,7 @@ const applyTheme = (mode: ThemeMode) => {
 };
 
 export const ThemeToggle = () => {
-  const [theme, setTheme] = useState<ThemeMode>("light");
+  const [theme, setTheme] = useState<ThemeMode>("dark");
 
   useEffect(() => {
     const preferred = getPreferredTheme();
@@ -45,7 +45,7 @@ export const ThemeToggle = () => {
       type="button"
       onClick={toggleTheme}
       aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
-      className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-input bg-background text-foreground shadow-sm transition hover:bg-muted"
+      className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
     >
       {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
     </button>
